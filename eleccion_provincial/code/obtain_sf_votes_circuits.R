@@ -172,7 +172,7 @@ eleccion_gobernador_circuitosgit <- eleccion_gobernador_circuitosgit %>%
 
 
 
-st_write(eleccion_gobernador_circuitosgit, "output/resultados_circuitos_PROVINCIA.shp", delete_layer = T)
+st_write(eleccion_gobernador_circuitosgit, "eleccion_provincial/outputs/capas/resultados_circuitos_PROVINCIA.shp", delete_layer = T)
 
 #circuitos que faltan datos
 
@@ -190,6 +190,49 @@ circuitos_faltantes <- circuitos_faltantes %>%
 
 st_write(circuitos_faltantes, "output/circuitos_faltantes_capa.xlsx", delete_layer = T)
 
+
+#Cargo los resultados de los circuitos faltantes scrapeados especificamente
+circuitos_faltantes_votos <- read_excel("eleccion_provincial/outputs/faltantes_scrapeados/faltantes_scrapeados.xlsx")
+circuitos_faltantes_votos2 <- read_excel("eleccion_provincial/outputs/faltantes_scrapeados/faltantes_scrapeados2.xlsx")
+
+
+eleccion_gobernador_faltantes <- circuitos_faltantes_votos %>% 
+  filter(candidato == "Gobernador y Vicegobernador")
+
+
+eleccion_gobernador_faltantes2 <- circuitos_faltantes_votos2 %>% 
+  filter(candidato == "Gobernador y Vicegobernador" & titulo == "TRIBUNAL ELECTORAL PROVINCIAL AD HOC") %>% 
+  select(c("circuito", "vot valido", "vot nulo" , "total votantes" , "electores en padron"))
+
+
+eleccion_gobernador_faltantes <- left_join(eleccion_gobernador_faltantes, eleccion_gobernador_faltantes2, by = "circuito")
+
+
+# Separar código de circuito y completar con ceros
+eleccion_gobernador_faltantes$codigo_circuito <- str_extract(eleccion_gobernador_faltantes$circuito, "\\d+\\w*")
+#circuitos_provincia_nuevo$codigo_circuito <- gsub("^0+", "", circuitos_provincia_nuevo$circuito)
+#circuitos_provincia$codigo_circuito <- gsub("^0+", "", circuitos_provincia$circuito)
+
+
+eleccion_gobernador_faltantes <- eleccion_gobernador_faltantes %>%
+  mutate(seccional = str_extract(codigo_circuito, "\\d+"))
+
+
+eleccion_gobernador_faltantesgit <- left_join(eleccion_gobernador_faltantes, circuitos_provincia, by = "codigo_circuito")
+
+#corroboramos que no haya circuitos que no joinearon
+circuitos_vacios_faltantes_git <- eleccion_gobernador_faltantesgit %>% 
+  filter(is.na(eleccion_gobernador_faltantesgit$coddepto))
+
+#concatenamos
+
+eleccion_gobernador_circuitosgit <- eleccion_gobernador_circuitosgit %>% 
+  rbind(eleccion_gobernador_faltantesgit)
+
+
+#circuitos_faltantes2 <- anti_join(circuitos_provincia, eleccion_gobernador_circuitosgit, by ="codigo_circuito")
+
+#mapview(eleccion_gobernador_circuitosgit1)
 
 
 # #writexl::write_xlsx(eleccion_gobernador1, "resultados_electorales/resultados_circuitos.xlsx")
