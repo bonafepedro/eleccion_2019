@@ -1,0 +1,90 @@
+VIDEO PARA HACER ANDAR OCRMYPDF https://www.youtube.com/watch?v=HH_FRCZVEpE&t=1s&ab_channel=MotechApp
+#pip install ocrmypdf / camelot-py
+#ghostscript -> instalar manualmente. Descargar el .exe y ejecutar. Seguir pasos del video.
+#No hace falta instalar Pillow porque se instala junto a ocrmypdf
+#Para instalar pytesserac https://github.com/UB-Mannheim/tesseract/wiki
+#Se descarga .exe, se instala y listo :D
+
+PARA INSTALAR PDFTABLES
+#pip install pdftables
+si no funciona intentar:
+#pip install pdftables.six
+
+Nota: por alguna razón que no entiendo cuando llamas la libería pdftables spyder te marca la linea como error.
+Igualmente el código corre. No sé por qué sucede, pero dado que funciona, simplemente ignorar.
+
+import ocrmypdf 
+import requests
+import pandas as pd
+from pdftables.pdftables import page_to_tables, page_to_tables, get_tables
+
+link = 'https://subastaselectronicas.cordoba.gob.ar/wp-content/uploads/2021/09/013450-21-Remodelaci%C3%B3n-y-Puesta-en-Valor-PB-y-1P-Palacio-Municipal-Arquitectura.pdf'
+
+#defino una función download por si no quiero descargar el archivo
+
+def download_file(url):
+    local_filename = url.split('/')[-1]
+    
+    with requests.get(url) as r:
+        assert r.status_code == 200, f'error, status code is {r.status_code}'
+        with open(local_filename, 'wb') as f:
+            f.write(r.content)
+        
+    return local_filename
+
+pdf= download_file(link)
+
+#En caso de descargar el archivo defino un directorio:
+
+dat1 =r'C:\XXX\XXXX\XXXX\presupuestoPrueba.pdf' #directorio de input
+dat2=r'C:\XXX\XXXX\XXXXX\presupuestoPrueba1.pdf' #directorio de output (este archivo no existe, cuando generemos el pdf se va a crear)
+
+#se utiliza ocrmypdf para reconocer los caracteres (optical character recognition)
+
+prep = ocrmypdf.ocr(dat1,dat2,remove_background=False) # los parámetros son input, output, entre otros de interés
+prep2 = ocrmypdf.ocr(pdf,dat2,remove_background=True) # el output devolverá el mismo pdf pero como "texto"
+
+#Se utiliza pdftables para interpretar el texto
+#Se selecciona página de interés
+
+pag70 = pdftables.pdftables.get_pdf_page(open(r'C:\Users\Josias Gomez\Downloads\presupuestoPrueba1.pdf', 'rb'),70)
+pag71 = pdftables.pdftables.get_pdf_page(open(r'C:\Users\Josias Gomez\Downloads\presupuestoPrueba1.pdf', 'rb'),71)
+
+#Se convierte a tabla
+
+table1 = pdftables.pdftables.page_to_tables(pag70)
+table2 = pdftables.pdftables.page_to_tables(pag71)
+
+#table1 y table2 es una lista de listas
+
+#se identifican los títulos
+
+titles = zip(table1[0][0])
+titles =list(titles)
+
+#Se identifican columnas
+#Se loopea sobre las tablas para obtener los objetos allrows y allrows1 con una lista de filas "unificadas"
+
+allrows=[]
+allrows1=[]
+for row in table1[0][1:]:
+    allrows.extend([row[:7],row[7:]])
+for row1 in table2[0][0:]:
+    allrows1.extend([row1[:7],row1[7:]])
+
+#Se convierten las listas en dataframes y se incluyen los títulos. Se presentan dos formas equivalentes
+
+df =pd.DataFrame(allrows,columns=titles)
+df1 =pd.DataFrame(columns=titles,data=allrows1)
+
+#Se concatena df y df1 para obtener un único dataframe
+
+df = pd.concat([df,df1],ignore_index=True)
+
+#Se quitan valores en blanco
+
+df.dropna(inplace=True)
+
+#Se exporta a excel
+
+df.to_excel(r'C:\XXX\XXXX\XXXX\presupuestoPrueba.xlsx')
